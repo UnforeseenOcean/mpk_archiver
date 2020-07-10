@@ -1,5 +1,3 @@
-
-
 #include <stdio.h>
 #include "dirent.h"
 #include <cstdlib>
@@ -22,18 +20,26 @@ struct fileentry {
 
 void main()
 {
-	
 	DIR* dir;
 	struct dirent* ent;
 	uint64_t num_files = 0;
-	filehead header = { 0xDEAD1988,0 };
+	struct filehead header = { 0xDEAD1988,0 };
 	struct fileentry* p = NULL;
-	uint64_t szstruct = sizeof(fileentry);
+	uint64_t file_offset = 0;
+	
+	uint8_t* buffer = NULL;
+	size_t buffersize;
+
+	uint64_t szstruct = sizeof(struct fileentry);
 	if ((dir = opendir(".")) != NULL) {
 		while ((ent = readdir(dir)) != NULL) {
 			if (!strcmp(ent->d_name, "."))
 				continue;
 			if (!strcmp(ent->d_name, ".."))
+				continue;
+			if (!strcmp(ent->d_name,"arch.mpk"))
+				continue;
+			if (!strcmp(ent->d_name,"archivetest.exe"))
 				continue;
 
 			header.numentries++;
@@ -42,17 +48,51 @@ void main()
 			printf("%s\n", ent->d_name);
 
 			if (!p)
-				p = (fileentry*)malloc(sizeof(struct fileentry));
+				p = (struct fileentry*)malloc(sizeof(struct fileentry));
 			else
-				p = (fileentry*)realloc(p, sizeof(fileentry) * num_files);
-			memset(p, 0, sizeof(fileentry));
-			(p+num_files-1)->uncomp_size = 0x10;
-			(p+num_files-1)->offset = 0xDEAD1988;
-			(p+num_files-1)->comp_size = 0x20;
+				p = (struct fileentry*)realloc(p, sizeof(struct fileentry) * num_files);
+
+			FILE* filep;
+			size_t filesize = 0;;
+			filep = fopen(ent->d_name, "rb");
+			if (filep == NULL) { fputs("File error", stderr); return; }
+			fseek(filep, 0, SEEK_END);
+			filesize = ftell(filep);
+			rewind(filep);
+
+			buffersize += filesize;
+			
+			if (!buffer)
+				buffer = (uint8_t*)malloc(sizeof(uint8_t) * buffersize);
+			else
+				buffer = (uint8_t*)realloc(buffer, buffersize);
+
+			if (buffer == NULL) { fputs("Memory error", stderr); return; }
+			size_t result = fread(buffer, 1, filesize, filep);
+			if (result != filesize) { fputs("Reading error", stderr); return; }
+				
+			fclose(filep);
+				
+			(p+num_files-1)->uncomp_size = filesize;
+			(p+num_files-1)->offset = file_offset;
+			(p+num_files-1)->comp_size = filesize;
 			uint8_t* name = (p + num_files - 1)->name;
 			strncpy((char*)name,ent->d_name,8);
+
+			file_offset += filesize;
 		}
 		closedir(dir);
+		
+		
+		FILE* fp= fopen("arch.mpk", "wb");
+		fwrite(buffer, buffersize, 1, fp);
+		fclose(fp);
+		
+		free(buffer);
+
+
+		header.numentries = num_files;
+
 		int i = 0;
 		do
 		{
