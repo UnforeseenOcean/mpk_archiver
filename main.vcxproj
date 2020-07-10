@@ -100,7 +100,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <OutputFile>.\Debug/cpp_bit_array.exe</OutputFile>
+      <OutputFile>.\out_test/archivetest.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Debug/cpp_bit_array.pdb</ProgramDatabaseFile>
